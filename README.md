@@ -1,5 +1,10 @@
 This is an Emacs mode for editing Turtle (RDF) files.
 
+I've changed the indenting for ttl-mode somewhat to support graphs
+(`{}`) better.
+
+Original readme:
+
 It is based on an excellent start made by Hugo Haas.
 I've extended it to support indentation, some electric punctuation,
 and hungry delete.
