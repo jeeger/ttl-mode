@@ -71,6 +71,7 @@
   (setq font-lock-defaults
         `((,(regexp-opt '("@prefix" "@base" "a") 'symbols)  ;keywords
            ("\\^\\^[^,;.]+" 0 font-lock-preprocessor-face t) ;literal types
+	   ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
            ("@[[:word:]_]+" . font-lock-preprocessor-face) ;languages
            ("\\S-*?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
@@ -118,20 +119,22 @@
      ((looking-at "$") (save-excursion (backward-to-indentation 1)))
      ;; beginning of stanza
      ((or (looking-at "@")         ; @prefix
-          (looking-at "#")         ; @base
-          (save-excursion          ; a subject
-            (while (forward-comment -1))
-            (or (looking-back "\\.")
-                (back-to-indentation) (looking-at "@"))) ; after prolog
-          ) 0)
-     ;; inside blank nodes
+          (looking-at "#"))	   ; @base
+      0)
+     ((looking-at "{")			; Graph literal
+      (* ttl-indent-level (nth 0 (syntax-ppss))))
+     ((looking-at "}")
+      (* ttl-indent-level (- (nth 0 (syntax-ppss)) 1)))
      (t (* ttl-indent-level
-           (+ (if (save-excursion
-                    (while (forward-comment -1))
-                    (looking-back "\\,")) ; object list
-                  2 1)
-              (nth 0 (syntax-ppss))	; levels in parens
-              ))))))
+           (+ (save-excursion
+                (while (forward-comment -1))
+		(cond
+                 ((looking-back "\\,") 2) ; object list
+		 ((looking-back "\\;") 1) ; predicate list
+		 ((looking-back "\\[") 1)	  ; blank node
+                 (t 0)))
+              (nth 0 (syntax-ppss))))))))	; levels in parens
+
 
 (defun ttl-insulate ()
   "Return true if this location should not be electrified"
