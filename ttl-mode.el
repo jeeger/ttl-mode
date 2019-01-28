@@ -69,9 +69,10 @@
 
   ;; fontification
   (setq font-lock-defaults
-        `((,(regexp-opt '("@prefix" "@base" "a") 'symbols)  ;keywords
+        `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "a") 'symbols)  ;keywords
            ("\\^\\^[^,;.]+" 0 font-lock-preprocessor-face t) ;literal types
 	   ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
+	   ("_:[[:word:]_]+" 0 font-lock-variable-name-face) ; Named anonymous nodes
            ("@[[:word:]_]+" . font-lock-preprocessor-face) ;languages
            ("\\S-*?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
@@ -85,7 +86,7 @@
   (set (make-local-variable 'indent-tabs-mode) nil))
 
 ;; electric punctuation
-;; (define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
+(define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
 (define-key ttl-mode-map (kbd "\;") 'ttl-electric-semicolon)
 (define-key ttl-mode-map (kbd "\.") 'ttl-electric-dot)
 (define-key ttl-mode-map [backspace] 'ttl-hungry-delete-backwards)
@@ -112,28 +113,36 @@
 (defun ttl-calculate-indentation ()
   (save-excursion
     (backward-to-indentation 0)
-    (cond
-     ;; in multiline string
-     ((nth 3 (syntax-ppss)) 'noindent)	; (current-indentation)
-     ;; empty line
-     ((looking-at "$") (save-excursion (backward-to-indentation 1)))
-     ;; beginning of stanza
-     ((or (looking-at "@")         ; @prefix
-          (looking-at "#"))	   ; @base
-      0)
-     ((looking-at "{")			; Graph literal
-      (* ttl-indent-level (nth 0 (syntax-ppss))))
-     ((looking-at "}")
-      (* ttl-indent-level (- (nth 0 (syntax-ppss)) 1)))
-     (t (* ttl-indent-level
-           (+ (save-excursion
-                (while (forward-comment -1))
-		(cond
-                 ((looking-back "\\,") 2) ; object list
-		 ((looking-back "\\;") 1) ; predicate list
-		 ((looking-back "\\[") 1)	  ; blank node
-                 (t 0)))
-              (nth 0 (syntax-ppss))))))))	; levels in parens
+    (let* ((bracket-level (first (syntax-ppss)))
+	   (last-indent (save-excursion (forward-comment -2) (current-indentation)))
+	   (base-indent (* bracket-level ttl-indent-level))
+	   (last-character (save-excursion (forward-comment -2) (char-to-string (char-before)))))
+      (cond
+       ;; in multiline string
+       ((nth 3 (syntax-ppss)) (current-indentation))
+       ;; empty line
+       ((looking-at "$") 0)
+       ;; beginning of stanza
+       ((or (looking-at "@")         ; @prefix, @base, @keywords.
+            (looking-at "#")	     ; Comments
+	    (looking-at "PREFIX:")
+	    (looking-at "BASE:"))
+	0)
+       ((looking-at "[})]") (max 0 (- base-indent ttl-indent-level))) ; Closing brackets
+       ((looking-at "]") (- last-indent ttl-indent-level))
+       ((ttl-in-blank-node) 		; Inside blank node, all bets are off ☺
+	(if (string-match-p "\\[" last-character) ; First line of blank node
+	    (+ last-indent ttl-indent-level)
+	  last-indent))
+       ((ttl-in-object-list)		; Inside object list
+	(if (string-match-p "(" last-character) ; First line of expanded object list
+	    (+ last-indent ttl-indent-level)
+	  last-indent))
+       ((string-match-p "\\." last-character) base-indent)
+       ((string-match-p ";" last-character) (+ base-indent ttl-indent-level))
+       (t base-indent)))))
+
+	     
 
 
 (defun ttl-insulate ()
@@ -144,18 +153,31 @@
             (nth 4 s)
             (ttl-in-resource-p)))))
 
+(defun ttl-in-blank-node ()
+  "Is point within a blank node, marked by [...]?"
+  (let ((list-start (nth 1 (syntax-ppss))))
+    (and list-start			; If not inside list, returns nil.
+	 (equal (buffer-substring list-start (1+ list-start)) "["))))
+
+(defun ttl-in-object-list ()
+  "Are we in a node list, marked by (...)?"
+  (let ((list-start (nth 1 (syntax-ppss))))
+    (and list-start			; If not inside list, list-start is nil.
+	 (equal (buffer-substring list-start (1+ list-start)) "("))))
+  
+
 (defun ttl-in-resource-p ()
   "Is point within a resource, marked by <...>?"
   (save-excursion
     (and (re-search-backward "[<> ]" nil t)
          (looking-at "<"))))
 
-;; (defun ttl-electric-comma ()
-;;   (interactive)
-;;   (if (ttl-insulate) (insert ",")
-;;     (if (not (looking-back " ")) (insert " "))
-;;     (insert ",")
-;;     (reindent-then-newline-and-indent)))
+(defun ttl-electric-comma ()
+  (interactive)
+  (if (ttl-insulate) (insert ",")
+    (if (not (looking-back " ")) (insert " "))
+    (insert ",")
+    (reindent-then-newline-and-indent)))
 
 (defun ttl-electric-semicolon ()
   (interactive)
