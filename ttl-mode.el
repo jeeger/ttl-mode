@@ -123,6 +123,8 @@
 	(cond
 	 ;; in multiline string
 	 ((nth 3 (syntax-ppss)) (current-indentation))
+	 ;; First line in buffer.
+	 ((bobp) 0)
 	 ;; empty line
 	 ((looking-at "$") last-indent)
 	 ;; beginning of stanza
