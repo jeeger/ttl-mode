@@ -69,7 +69,7 @@
 
   ;; fontification
   (setq font-lock-defaults
-        `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "@forAll" "@forSome" "a") 'symbols)  ;keywords
+        `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "@forAll" "@forSome" "true" "false" "a") 'symbols)  ;keywords
            ("\\^\\^[^,;.]+" 0 font-lock-preprocessor-face t) ;literal types
 	   ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
 	   ("_:[[:word:]_]+" 0 font-lock-variable-name-face) ; Named anonymous nodes
