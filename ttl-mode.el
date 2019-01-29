@@ -118,7 +118,7 @@
     (backward-to-indentation 0)
     (cl-destructuring-bind
 	(last-indent last-character)
-	(save-excursion (forward-comment -2) (list (current-indentation) (char-to-string (char-before))))
+	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-to-string (char-before))))
       (let ((base-indent (* ttl-indent-level (car (syntax-ppss)))))
 	(cond
 	 ;; in multiline string
@@ -131,9 +131,8 @@
 		   (looking-at "BASE:"))
 	       (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
 	  0)
-	 ((looking-at "#") base-indent)
-	 ((looking-at "[})]") (max 0 (- base-indent ttl-indent-level))) ; Closing brackets
-	 ((looking-at "]") (- last-indent ttl-indent-level))
+	 ((looking-at "#") last-indent)
+	 ((looking-at "[])}]") (max 0 (- last-indent ttl-indent-level)))
 	 ((ttl-in-blank-node) 		; Inside blank node, all bets are off ☺
 	  (if (string-match-p "\\[" last-character) ; First line of blank node
 	      (+ last-indent ttl-indent-level)
@@ -145,6 +144,38 @@
 	 ((string-match-p "\\." last-character) base-indent)
 	 ((string-match-p ";" last-character) (+ base-indent ttl-indent-level))
 	 (t base-indent))))))
+
+
+(defun ttl-in-comment ()
+  "Whether we are in a comment.
+
+Can't just use (nth 4 (syntax-ppss)), since fragment
+identifiers (in prefixes, for example) also make it think we're
+in a comment."
+  (save-excursion
+    (end-of-line)
+    (let* ((syntax-state (syntax-ppss))
+	   (in-comment-ppss (nth 4 syntax-state))
+	   (comment-pos (nth 8 syntax-state)))
+      (if (not in-comment-ppss)		; If syntax-ppss doesn't think we're in a comment, we're not.
+	  nil
+	(goto-char comment-pos)
+	(not (ttl-in-resource-p))))))	; We're *not* in a comment if we're in a resource.
+    
+  
+
+(defun ttl-skip-uninteresting-lines ()
+  "Skip backwards to the first non-comment non-empty line."
+  (forward-line -1)
+  (end-of-line)
+  (while (and
+	  (or
+	   (ttl-in-comment)	; Comment or empty line (if end-of-line goes ot beginning of line, line is empty.
+	   (bolp))
+	  (not (bobp)))
+    (end-of-line)
+    (forward-line -1)
+  (end-of-line)))
 
 (defun ttl-insulate ()
   "Return non-nil if this location should not be electrified."
