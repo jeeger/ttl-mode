@@ -69,7 +69,7 @@
 
   ;; fontification
   (setq font-lock-defaults
-        `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "a") 'symbols)  ;keywords
+        `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "@forAll" "@forSome" "a") 'symbols)  ;keywords
            ("\\^\\^[^,;.]+" 0 font-lock-preprocessor-face t) ;literal types
 	   ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
 	   ("_:[[:word:]_]+" 0 font-lock-variable-name-face) ; Named anonymous nodes
@@ -121,12 +121,13 @@
        ;; in multiline string
        ((nth 3 (syntax-ppss)) (current-indentation))
        ;; empty line
-       ((looking-at "$") 0)
+       ((looking-at "$") last-indent)
        ;; beginning of stanza
-       ((or (looking-at "@")         ; @prefix, @base, @keywords.
-            (looking-at "#")	     ; Comments
-	    (looking-at "PREFIX:")
-	    (looking-at "BASE:"))
+       ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
+		 (looking-at "#")	     ; Comments
+		 (looking-at "PREFIX:")
+		 (looking-at "BASE:"))
+	     (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
 	0)
        ((looking-at "[})]") (max 0 (- base-indent ttl-indent-level))) ; Closing brackets
        ((looking-at "]") (- last-indent ttl-indent-level))
@@ -141,9 +142,6 @@
        ((string-match-p "\\." last-character) base-indent)
        ((string-match-p ";" last-character) (+ base-indent ttl-indent-level))
        (t base-indent)))))
-
-	     
-
 
 (defun ttl-insulate ()
   "Return true if this location should not be electrified"
@@ -165,7 +163,6 @@
     (and list-start			; If not inside list, list-start is nil.
 	 (equal (buffer-substring list-start (1+ list-start)) "("))))
   
-
 (defun ttl-in-resource-p ()
   "Is point within a resource, marked by <...>?"
   (save-excursion
@@ -188,10 +185,12 @@
 
 (defun ttl-electric-dot ()
   (interactive)
-  (if (ttl-insulate) (insert ".")
-    (if (not (looking-back " ")) (insert " "))
-    (insert ".")
-    (reindent-then-newline-and-indent)))
+  (if (ttl-in-blank-node)
+      (message "No period in blank nodes.")
+    (if (ttl-insulate) (insert ".")
+      (if (not (looking-back " ")) (insert " "))
+      (insert ".")
+      (reindent-then-newline-and-indent))))
 
 (defun ttl-skip-ws-backwards ()  ;adapted from cc-mode
   "Move backwards across whitespace."
