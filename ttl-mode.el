@@ -1,5 +1,4 @@
 ;;; ttl-mode.el --- mode for Turtle (and Notation 3)
-
 ;; ttl-mode.el is released under the terms of the two-clause BSD licence:
 ;;
 ;; Copyright 2003-2007, Hugo Haas <http://www.hugoh.net>
@@ -32,7 +31,7 @@
 ;; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;;
 ;;
-;;
+;;; Commentary:
 ;;
 ;; See Hugo's commentary for original goals and further discussion,
 ;; at http://larve.net/people/hugo/2003/scratchpad/NotationThreeEmacsMode.html
@@ -57,6 +56,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 
 ;;;###autoload
 (define-derived-mode ttl-mode prog-mode "N3/Turtle mode"
@@ -93,7 +93,7 @@
 (define-key ttl-mode-map [backspace] 'ttl-hungry-delete-backwards)
 
 
-(defgroup ttl nil "Customization for ttl-mode")
+(defgroup ttl nil "Customization for ttl-mode" :group 'text)
 
 (defcustom ttl-indent-level 4
   "Number of spaces for each indentation step in `ttl-mode'."
@@ -105,6 +105,7 @@
 
 
 (defun ttl-indent-line ()
+  "Indent current line."
   (interactive)
   (save-excursion
     (indent-line-to
@@ -112,40 +113,41 @@
   (move-to-column (max (current-indentation) (current-column))))
 
 (defun ttl-calculate-indentation ()
+  "Calculate the indentation for the current line."
   (save-excursion
     (backward-to-indentation 0)
-    (let* ((bracket-level (first (syntax-ppss)))
-	   (last-indent (save-excursion (forward-comment -2) (current-indentation)))
-	   (base-indent (* bracket-level ttl-indent-level))
-	   (last-character (save-excursion (forward-comment -2) (char-to-string (char-before)))))
-      (cond
-       ;; in multiline string
-       ((nth 3 (syntax-ppss)) (current-indentation))
-       ;; empty line
-       ((looking-at "$") last-indent)
-       ;; beginning of stanza
-       ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
-		 (looking-at "#")	     ; Comments
-		 (looking-at "PREFIX:")
-		 (looking-at "BASE:"))
-	     (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
-	0)
-       ((looking-at "[})]") (max 0 (- base-indent ttl-indent-level))) ; Closing brackets
-       ((looking-at "]") (- last-indent ttl-indent-level))
-       ((ttl-in-blank-node) 		; Inside blank node, all bets are off ☺
-	(if (string-match-p "\\[" last-character) ; First line of blank node
-	    (+ last-indent ttl-indent-level)
-	  last-indent))
-       ((ttl-in-object-list)		; Inside object list
-	(if (string-match-p "(" last-character) ; First line of expanded object list
-	    (+ last-indent ttl-indent-level)
-	  last-indent))
-       ((string-match-p "\\." last-character) base-indent)
-       ((string-match-p ";" last-character) (+ base-indent ttl-indent-level))
-       (t base-indent)))))
+    (cl-destructuring-bind
+	(last-indent last-character)
+	(save-excursion (forward-comment -2) (list (current-indentation) (char-to-string (char-before))))
+      (let ((base-indent (* ttl-indent-level (car (syntax-ppss)))))
+	(cond
+	 ;; in multiline string
+	 ((nth 3 (syntax-ppss)) (current-indentation))
+	 ;; empty line
+	 ((looking-at "$") last-indent)
+	 ;; beginning of stanza
+	 ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
+		   (looking-at "PREFIX:")
+		   (looking-at "BASE:"))
+	       (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
+	  0)
+	 ((looking-at "#") base-indent)
+	 ((looking-at "[})]") (max 0 (- base-indent ttl-indent-level))) ; Closing brackets
+	 ((looking-at "]") (- last-indent ttl-indent-level))
+	 ((ttl-in-blank-node) 		; Inside blank node, all bets are off ☺
+	  (if (string-match-p "\\[" last-character) ; First line of blank node
+	      (+ last-indent ttl-indent-level)
+	    last-indent))
+	 ((ttl-in-object-list)		; Inside object list
+	  (if (string-match-p "(" last-character) ; First line of expanded object list
+	      (+ last-indent ttl-indent-level)
+	    last-indent))
+	 ((string-match-p "\\." last-character) base-indent)
+	 ((string-match-p ";" last-character) (+ base-indent ttl-indent-level))
+	 (t base-indent))))))
 
 (defun ttl-insulate ()
-  "Return true if this location should not be electrified"
+  "Return non-nil if this location should not be electrified."
   (or (not ttl-electric-punctuation)
       (let '(s (syntax-ppss))
         (or (nth 3 s)
@@ -163,7 +165,7 @@
   (let ((list-start (nth 1 (syntax-ppss))))
     (and list-start			; If not inside list, list-start is nil.
 	 (equal (buffer-substring list-start (1+ list-start)) "("))))
-  
+
 (defun ttl-in-resource-p ()
   "Is point within a resource, marked by <...>?"
   (save-excursion
@@ -171,25 +173,29 @@
          (looking-at "<"))))
 
 (defun ttl-electric-comma ()
+  "Insert spaced comma, indent, insert newline and reindent."
   (interactive)
   (if (ttl-insulate) (insert ",")
-    (if (not (looking-back " ")) (insert " "))
-    (insert ",")
-    (reindent-then-newline-and-indent)))
+    (progn
+      (if (not (looking-back " " 1)) (insert " "))
+      (insert ", ")
+      (ttl-indent-line))))
 
 (defun ttl-electric-semicolon ()
+  "Insert spaced semicolon, indent, insert newline and reindent next line."
   (interactive)
   (if (ttl-insulate) (insert ";")
-    (if (not (looking-back " ")) (insert " "))
+    (if (not (looking-back " " 1)) (insert " "))
     (insert ";")
     (reindent-then-newline-and-indent)))
 
 (defun ttl-electric-dot ()
+  "Insert spaced dot, insert newline, indent."
   (interactive)
   (if (ttl-in-blank-node)
       (message "No period in blank nodes.")
     (if (ttl-insulate) (insert ".")
-      (if (not (looking-back " ")) (insert " "))
+      (if (not (looking-back " " 1)) (insert " "))
       (insert ".")
       (reindent-then-newline-and-indent))))
 
@@ -202,8 +208,10 @@
     (backward-char)))
 
 (defun ttl-hungry-delete-backwards ()
-  "Delete backwards, either all of the preceding whitespace,
-or a single non-whitespace character if there is no whitespace before point."
+  "Delete backwards hungrily.
+
+Deletes either all of the preceding whitespace, or a single
+non-whitespace character if there is no whitespace before point."
   (interactive)
   (let ((here (point)))
     (ttl-skip-ws-backwards)
