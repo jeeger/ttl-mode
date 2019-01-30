@@ -133,8 +133,8 @@
 		   (looking-at "BASE:"))
 	       (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
 	  0)
-	 ((looking-at "#") last-indent)
-	 ((looking-at "[])}]") (max 0 (- last-indent ttl-indent-level)))
+	 ((looking-at "#") base-indent)
+	 ((looking-at "[])}]") (max 0 (- base-indent ttl-indent-level)))
 	 ((ttl-in-blank-node) 		; Inside blank node, all bets are off ☺
 	  (if (string-match-p "\\[" last-character) ; First line of blank node
 	      (+ last-indent ttl-indent-level)
