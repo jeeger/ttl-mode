@@ -119,7 +119,8 @@
     (cl-destructuring-bind
 	(last-indent last-character)
 	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-to-string (char-before))))
-      (let ((base-indent (* ttl-indent-level (car (syntax-ppss)))))
+      (let* ((syntax-info (syntax-ppss))
+	     (base-indent (* ttl-indent-level (car syntax-info))))
 	(cond
 	 ;; in multiline string
 	 ((nth 3 (syntax-ppss)) (current-indentation))
@@ -134,7 +135,10 @@
 	       (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
 	  0)
 	 ((looking-at "#") base-indent)
-	 ((looking-at "[])}]") (max 0 (- base-indent ttl-indent-level)))
+	 ((looking-at "[])}]")		; Indent to level of matching parenthesis.
+	  (save-excursion
+	    (goto-char (nth 1 syntax-info))
+	    (current-indentation)))
 	 ((ttl-in-blank-node) 		; Inside blank node, all bets are off ☺
 	  (if (string-match-p "\\[" last-character) ; First line of blank node
 	      (+ last-indent ttl-indent-level)
