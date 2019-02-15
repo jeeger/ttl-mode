@@ -173,11 +173,16 @@ in a comment."
   (while (and
 	  (or
 	   (ttl-in-comment)	; Comment or empty line (if end-of-line goes ot beginning of line, line is empty.
-	   (bolp))
+	   ;; Use \\` to match correctly. To explain: thing-at-point
+	   ;; returns something like «text\n», and the regex with ^
+	   ;; would match the final newline. So we use \\` instead to
+	   ;; match the beginning of the string (see
+	   ;; http://ergoemacs.org/emacs/emacs_regex_begin_end_line_string.html)
+	   (string-match "\\`\\s-*$" (thing-at-point 'line)))
 	  (not (bobp)))
     (end-of-line)
-    (forward-line -1)
-  (end-of-line)))
+    (forward-line -1))
+  (end-of-line))
 
 (defun ttl-insulate ()
   "Return non-nil if this location should not be electrified."
