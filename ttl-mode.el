@@ -72,9 +72,8 @@
         `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "@forAll" "@forSome" "true" "false" "a") 'symbols)  ;keywords
            ("\\^\\^[^,;.]+" 0 font-lock-preprocessor-face t) ;literal types
 	   ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
-	   ("_:[[:word:]_]+" 0 font-lock-variable-name-face) ; Named anonymous nodes
            ("@[[:word:]_]+" . font-lock-preprocessor-face) ;languages
-           ("\\S-*?:" . font-lock-type-face)       ;prefix
+           ("\\(:?\\S-+\\|_\\)?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
            ("[,;.]" 0 font-lock-keyword-face) ;punctuation
