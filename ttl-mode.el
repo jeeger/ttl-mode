@@ -84,9 +84,7 @@
   "Major mode for Turtle RDF documents."
 
   ;; Comments syntax
-  (set (make-local-variable 'comment-start) "# ")
-  (modify-syntax-entry ?# "< b" ttl-mode-syntax-table)
-  (modify-syntax-entry ?\n "> b" ttl-mode-syntax-table)
+  (set (make-local-variable 'comment-start) " # ")
 
   ;; fontification
   (setq font-lock-defaults
@@ -98,9 +96,9 @@
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
 	   ;; TODO: This incorrectly highlights resources in strings.
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
-           ("[,;.]" 0 font-lock-keyword-face) ;punctuation
-           ("^\\s-*\\(#.*\\)" 1 font-lock-comment-face t) ;comment
-           ) nil))
+           ("[,;.]" 0 font-lock-keyword-face)
+	   ("\\(?:\\(?:^\\|[[:blank:]]\\)#.*?$\\)" 0 font-lock-comment-face)
+	   ("\".*?\"" 0 font-lock-string-face)) t)) ;punctuation
 
   ;; indentation
   (set (make-local-variable 'indent-line-function) 'ttl-indent-line)
@@ -143,16 +141,14 @@
 	 ;; in multiline string
 	 ((nth 3 syntax-info) (current-indentation))
 	 ;; First line in buffer.
-	 ((bobp) 0)
-	 ;; ;; empty line
-	 ;; ((looking-at "$") last-indent)
+	 ((= (line-number-at-pos (point) t) 1) 0)
 	 ;; beginning of stanza
 	 ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
 		   (looking-at "PREFIX:")
 		   (looking-at "BASE:"))
 	       (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
 	  0)
-	 ((looking-at "#") base-indent)
+	 ;; ((looking-at "#") base-indent)
 	 ((looking-at "[])}]")		; Indent to level of matching parenthesis.
 	  (save-excursion
 	    (goto-char (nth 1 syntax-info))
@@ -169,42 +165,21 @@
 	 ((string-match-p ";" last-character) (+ base-indent ttl-indent-level))
 	 (t base-indent))))))
 
-
-(defun ttl-in-comment ()
-  "Whether we are in a comment.
-
-Can't just use (nth 4 (syntax-ppss)), since fragment
-identifiers (in prefixes, for example) also make it think we're
-in a comment."
-  (save-excursion
-    (end-of-line)
-    (let* ((syntax-state (syntax-ppss))
-	   (in-comment-ppss (nth 4 syntax-state))
-	   (comment-pos (nth 8 syntax-state)))
-      (if (not in-comment-ppss)		; If syntax-ppss doesn't think we're in a comment, we're not.
-	  nil
-	(goto-char comment-pos)
-	(not (ttl-in-resource-p))))))	; We're *not* in a comment if we're in a resource.
-    
-  
-
 (defun ttl-skip-uninteresting-lines ()
-  "Skip backwards to the first non-comment non-empty line."
+  "Skip backwards to the first non-comment content."
   (forward-line -1)
-  (end-of-line)
-  (while (and
-	  (or
-	   (ttl-in-comment)	; Comment or empty line (if end-of-line goes ot beginning of line, line is empty.
-	   ;; Use \\` to match correctly. To explain: thing-at-point
-	   ;; returns something like «text\n», and the regex with ^
-	   ;; would match the final newline. So we use \\` instead to
-	   ;; match the beginning of the string (see
-	   ;; http://ergoemacs.org/emacs/emacs_regex_begin_end_line_string.html)
-	   (string-match "\\`\\s-*$" (thing-at-point 'line)))
-	  (not (bobp)))
-    (end-of-line)
+  ;; First, skip lines that consist only of comments.
+  (while (or
+	  ;; Skip comment lines
+	  (string-match (rx (and string-start (* blank) ?# (*? not-newline) line-end)) (thing-at-point 'line))
+	  ;; Skip empty lines
+	  (string-match (rx (and string-start (* blank) line-end)) (thing-at-point 'line)))
     (forward-line -1))
-  (end-of-line))
+  ;; Then, go to last non-comment-character
+  (if (search-forward " #" (point-at-eol) t)
+      (backward-char 2)
+    (end-of-line)))
+  
 
 (defun ttl-insulate ()
   "Return non-nil if this location should not be electrified."
