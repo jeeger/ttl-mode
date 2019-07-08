@@ -85,6 +85,7 @@
 
   ;; Comments syntax
   (set (make-local-variable 'comment-start) " # ")
+  (modify-syntax-entry ?\n "> " ttl-mode-syntax-table)
 
   ;; fontification
   (setq font-lock-defaults
@@ -96,9 +97,11 @@
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
 	   ;; TODO: This incorrectly highlights resources in strings.
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
-           ("[,;.]" 0 font-lock-keyword-face)
-	   ("\\(?:\\(?:^\\|[[:blank:]]\\)#.*?$\\)" 0 font-lock-comment-face)
-	   ("\".*?\"" 0 font-lock-string-face)) t)) ;punctuation
+           ("[,;.]" 0 font-lock-keyword-face))
+	  nil
+	  nil
+	  nil
+	  (syntax-propertize-function . ttl-propertize-comments)))
 
   ;; indentation
   (set (make-local-variable 'indent-line-function) 'ttl-indent-line)
@@ -114,6 +117,19 @@
 (define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
 (define-key ttl-mode-map (kbd "\.") 'ttl-electric-dot)
 (define-key ttl-mode-map [backspace] 'ttl-hungry-delete-backwards)
+
+(defun ttl-propertize-comments (start end)
+  ;; Set the syntax class to comment-start for all hash marks that are prepended by a space.
+  (save-excursion
+    (goto-char start)
+    (save-match-data
+      (while (search-forward "#" end t)
+	(let ((char-before (buffer-substring-no-properties
+			    (max (point-min) (- (point) 2))
+			    (min (point-max) (- (point) 1)))))
+	  (when (or (equal char-before " ")
+		    (equal char-before "\n"))
+	    (put-text-property (match-beginning 0) (match-end 0) 'syntax-table '(11))))))))
 
 (defun ttl-indent-line ()
   "Indent current line."
