@@ -58,6 +58,27 @@
 
 (require 'cl-lib)
 
+(defgroup ttl nil "Customization for ttl-mode" :group 'text)
+
+(defcustom ttl-indent-level 4
+  "Number of spaces for each indentation step in `ttl-mode'."
+  :type 'integer)
+
+(defcustom ttl-electric-punctuation t
+  "If non-nil, `\;' or `\.' will self insert, reindent the line, and do a newline. (To insert while t, do: \\[quoted-insert] \;)."
+  :type 'boolean)
+
+(defcustom ttl-indent-on-idle-timer t
+  "If non-nil, will automatically indent a line after `ttl-idle-timer-timeout'."
+  :type 'boolean)
+
+(defcustom ttl-indent-idle-timer-period 2
+  "If `ttl-indent-on-idle-timer' is non-nil, indent after EMACS has been idle for this many seconds."
+  :type 'integer)
+
+
+(defvar ttl-indent-idle-timer nil "TTL-mode autoindent idle timer if idle auto indentation is used (`ttl-indent-on-idle-timer' is non-nil).")
+
 ;;;###autoload
 (define-derived-mode ttl-mode prog-mode "N3/Turtle mode"
   "Major mode for Turtle RDF documents."
@@ -75,6 +96,7 @@
            ("@[[:word:]_]+" . font-lock-preprocessor-face) ;languages
            ("\\(:?\\S-+\\|_\\)?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
+	   ;; TODO: This incorrectly highlights resources in strings.
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
            ("[,;.]" 0 font-lock-keyword-face) ;punctuation
            ("^\\s-*\\(#.*\\)" 1 font-lock-comment-face t) ;comment
@@ -82,7 +104,11 @@
 
   ;; indentation
   (set (make-local-variable 'indent-line-function) 'ttl-indent-line)
-  (set (make-local-variable 'indent-tabs-mode) nil))
+  (set (make-local-variable 'indent-tabs-mode) nil)
+  (if (and ttl-indent-on-idle-timer (not ttl-indent-idle-timer))
+      (setq ttl-indent-idle-timer (run-with-idle-timer ttl-indent-idle-timer-period t 'ttl-idle-indent))
+    (when ttl-indent-idle-timer
+      (setq ttl-indent-idle-timer (cancel-timer ttl-indent-idle-timer)))))
 
 ;; electric punctuation
 (define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
@@ -91,18 +117,6 @@
 (define-key ttl-mode-map (kbd "\.") 'ttl-electric-dot)
 (define-key ttl-mode-map [backspace] 'ttl-hungry-delete-backwards)
 
-
-(defgroup ttl nil "Customization for ttl-mode" :group 'text)
-
-(defcustom ttl-indent-level 4
-  "Number of spaces for each indentation step in `ttl-mode'."
-  :type 'integer)
-
-(defcustom ttl-electric-punctuation t
-  "*If non-nil, `\;' or `\.' will self insert, reindent the line, and do a newline. (To insert while t, do: \\[quoted-insert] \;)."
-  :type 'boolean)
-
-
 (defun ttl-indent-line ()
   "Indent current line."
   (interactive)
@@ -110,6 +124,11 @@
     (indent-line-to
      (or (ignore-errors (ttl-calculate-indentation)) 0)))
   (move-to-column (max (current-indentation) (current-column))))
+
+(defun ttl-idle-indent ()
+  "Indent the current line, and check you're in an ttl-mode buffer."
+  (when (eq major-mode 'ttl-mode)
+      (ttl-indent-line)))
 
 (defun ttl-calculate-indentation ()
   "Calculate the indentation for the current line."
@@ -122,11 +141,11 @@
 	     (base-indent (* ttl-indent-level (car syntax-info))))
 	(cond
 	 ;; in multiline string
-	 ((nth 3 (syntax-ppss)) (current-indentation))
+	 ((nth 3 syntax-info) (current-indentation))
 	 ;; First line in buffer.
 	 ((bobp) 0)
-	 ;; empty line
-	 ((looking-at "$") last-indent)
+	 ;; ;; empty line
+	 ;; ((looking-at "$") last-indent)
 	 ;; beginning of stanza
 	 ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
 		   (looking-at "PREFIX:")
