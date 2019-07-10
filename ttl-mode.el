@@ -179,8 +179,7 @@
 	      (+ last-indent ttl-indent-level)
 	    last-indent))
 	 ((string-match-p "\\." last-character) base-indent)
-	 ((string-match-p ";" last-character) (+ base-indent ttl-indent-level))
-	 (t base-indent))))))
+	 (t (+ base-indent ttl-indent-level)))))))
 
 (defun ttl-skip-uninteresting-lines ()
   "Skip backwards to the first non-comment content."
