@@ -95,6 +95,7 @@
            ("@[[:word:]_]+" . font-lock-preprocessor-face) ;languages
            ("\\(:?\\S-+\\|_\\)?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
+	   ("\\(?:[[:space:]]+$\\)" 0 whitespace-trailing) ; Trailing whitespace is bad, mkay?
 	   ;; TODO: This incorrectly highlights resources in strings.
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
            ("[,;.]" 0 font-lock-keyword-face))
