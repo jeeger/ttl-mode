@@ -223,6 +223,14 @@
     (and (re-search-backward "[<> ]" nil t)
          (looking-at "<"))))
 
+(defun ttl-in-comment ()
+  "Are we in a comment, marked by a hash mark?"
+  (nth 4 (syntax-ppss)))
+
+(defun ttl-in-string ()
+  "Are we in a string?"
+  (nth 3 (syntax-ppss)))
+
 (defun ttl-electric-comma ()
   "Insert spaced comma, indent, insert newline and reindent."
   (interactive)
@@ -243,7 +251,9 @@
 (defun ttl-electric-dot ()
   "Insert spaced dot, insert newline, indent."
   (interactive)
-  (if (ttl-in-blank-node)
+  (if (and (ttl-in-blank-node)
+	   (not (ttl-in-comment))
+	   (not (ttl-in-string)))
       (message "No period in blank nodes.")
     (if (ttl-insulate) (insert ".")
       (if (not (looking-back " " 1)) (insert " "))
