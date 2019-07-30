@@ -93,7 +93,8 @@
            ("\\^\\^[^,;.]+" 0 font-lock-preprocessor-face t) ;literal types
 	   ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
            ("@[[:word:]_]+" . font-lock-preprocessor-face) ;languages
-           ("\\(:?\\S-+\\|_\\)?:" . font-lock-type-face)       ;prefix
+	   ; Does not work with iris containing multiple colons (one:two:three is apparently allowed.)
+           ("\\(:?[[:alnum:]]+\\|_\\)?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
 	   ("\\(?:[[:space:]]+$\\)" 0 whitespace-trailing) ; Trailing whitespace is bad, mkay?
 	   ;; TODO: This incorrectly highlights resources in strings.
