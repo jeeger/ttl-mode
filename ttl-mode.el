@@ -99,15 +99,12 @@
 	   ("\\(?:[[:space:]]+$\\)" 0 whitespace-trailing) ; Trailing whitespace is bad, mkay?
 	   ;; TODO: This incorrectly highlights resources in strings.
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
-           ("[,;.]" 0 font-lock-keyword-face))
-	  nil
-	  nil
-	  nil
-	  (syntax-propertize-function . ttl-propertize-comments)))
-
+           ("[,;.]" 0 font-lock-keyword-face))))
+  
   ;; indentation
   (set (make-local-variable 'indent-line-function) 'ttl-indent-line)
   (set (make-local-variable 'indent-tabs-mode) nil)
+  (set (make-local-variable 'syntax-propertize-function) 'ttl-propertize-comments)
   (if (and ttl-indent-on-idle-timer (not ttl-indent-idle-timer))
       (setq ttl-indent-idle-timer (run-with-idle-timer ttl-indent-idle-timer-period t 'ttl-idle-indent))
     (when ttl-indent-idle-timer
@@ -120,8 +117,11 @@
 (define-key ttl-mode-map (kbd "\.") 'ttl-electric-dot)
 (define-key ttl-mode-map [backspace] 'ttl-hungry-delete-backwards)
 
+
+;; Could be replaced with a call to syntax-propertize-rules. See
+;; https://emacs.stackexchange.com/questions/36909/how-can-i-make-syntax-propertize-skip-part-of-the-buffer
 (defun ttl-propertize-comments (start end)
-  ;; Set the syntax class to comment-start for all hash marks that are prepended by a space.
+  "Set the syntax class to `comment-start` for all hashes that are prepended by a space between START and END."
   (save-excursion
     (goto-char start)
     (save-match-data
