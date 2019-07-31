@@ -154,7 +154,7 @@
 	(last-indent last-character)
 	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-before)))
       (let* ((syntax-info (syntax-ppss))
-	     (base-indent (* ttl-indent-level (car syntax-info))))
+	     (base-indent (* ttl-indent-level (ttl-adjusted-paren-depth (nth 9 syntax-info)))))
 	(cond
 	 ;; in multiline string
 	 ((nth 3 syntax-info) (current-indentation))
@@ -180,6 +180,11 @@
 	  (+ last-indent ttl-indent-level))
 	 ((eq ?. last-character) base-indent)
 	 (t (+ base-indent ttl-indent-level)))))))
+
+(defun ttl-adjusted-paren-depth (parenpos)
+  "Calculate parenthesis depth from PARENPOS, ignoring parentheses on the same line."
+  ;; Just enough common lisp to be dangerous.
+  (length (delete-dups (loop for pos in parenpos collect (line-number-at-pos pos)))))
 
 (defun ttl-skip-uninteresting-lines ()
   "Skip backwards to the first non-comment content."
