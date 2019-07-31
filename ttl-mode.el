@@ -152,7 +152,7 @@
     (backward-to-indentation 0)
     (cl-destructuring-bind
 	(last-indent last-character)
-	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-to-string (char-before))))
+	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-before)))
       (let* ((syntax-info (syntax-ppss))
 	     (base-indent (* ttl-indent-level (car syntax-info))))
 	(cond
@@ -171,15 +171,14 @@
 	  (save-excursion
 	    (goto-char (nth 1 syntax-info))
 	    (current-indentation)))
-	 ((ttl-in-blank-node) 		; Inside blank node, all bets are off ☺
-	  (if (string-match-p "\\[" last-character) ; First line of blank node
-	      (+ last-indent ttl-indent-level)
-	    last-indent))
-	 ((ttl-in-object-list)		; Inside object list
-	  (if (string-match-p "(" last-character) ; First line of expanded object list
-	      (+ last-indent ttl-indent-level)
-	    last-indent))
-	 ((string-match-p "\\." last-character) base-indent)
+	 ;; TODO: Merge these.
+	 ((ttl-first-line-of ?\[ last-character)
+	  (+ last-indent ttl-indent-level))
+	 ((ttl-first-line-of ?\( last-character)
+	  (+ last-indent ttl-indent-level))
+	 ((ttl-first-line-of ?\{ last-character)
+	  (+ last-indent ttl-indent-level))
+	 ((eq ?. last-character) base-indent)
 	 (t (+ base-indent ttl-indent-level)))))))
 
 (defun ttl-skip-uninteresting-lines ()
@@ -204,21 +203,34 @@
       (let '(s (syntax-ppss))
         (or (nth 3 s)
             (nth 4 s)
-            (ttl-in-resource-p)))))
+            (ttl-in-resource)))))
+
+(defun ttl-last-bracket-is (brack)
+  "Is the last bracket equal to BRACK?"
+  (let ((list-start (nth 1 (syntax-ppss))))
+       (and list-start
+	    (equal (char-after list-start) brack))))
+
+(defun ttl-first-line-of (brack lastchar)
+  "Whether we are in the first line of a node introduced by BRACK.
+
+LASTCHAR is the last character of the preceding line."
+  (and (ttl-last-bracket-is brack)
+       (eq brack lastchar)))
 
 (defun ttl-in-blank-node ()
   "Is point within a blank node, marked by [...]?"
-  (let ((list-start (nth 1 (syntax-ppss))))
-    (and list-start			; If not inside list, returns nil.
-	 (equal (buffer-substring list-start (1+ list-start)) "["))))
+  (ttl-last-bracket-is ?\[))
+  
+(defun ttl-in-graph ()
+  "Is point within a graph?"
+  (ttl-last-bracket-is ?\{))
 
 (defun ttl-in-object-list ()
   "Are we in a node list, marked by (...)?"
-  (let ((list-start (nth 1 (syntax-ppss))))
-    (and list-start			; If not inside list, list-start is nil.
-	 (equal (buffer-substring list-start (1+ list-start)) "("))))
+  (ttl-last-bracket-is ?\())
 
-(defun ttl-in-resource-p ()
+(defun ttl-in-resource ()
   "Is point within a resource, marked by <...>?"
   (save-excursion
     (and (re-search-backward "[<> ]" nil t)
