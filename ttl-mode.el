@@ -96,7 +96,6 @@
 	   ; Does not work with iris containing multiple colons (one:two:three is apparently allowed.)
            ("\\(:?[[:alnum:]]+\\|_\\)?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
-	   ("\\(?:[[:space:]]+$\\)" 0 whitespace-trailing) ; Trailing whitespace is bad, mkay?
 	   ;; TODO: This incorrectly highlights resources in strings.
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
            ("[,;.]" 0 font-lock-keyword-face))))
@@ -105,6 +104,7 @@
   (set (make-local-variable 'indent-line-function) 'ttl-indent-line)
   (set (make-local-variable 'indent-tabs-mode) nil)
   (set (make-local-variable 'syntax-propertize-function) 'ttl-propertize-comments)
+  (setq show-trailing-whitespace t)
   (if (and ttl-indent-on-idle-timer (not ttl-indent-idle-timer))
       (setq ttl-indent-idle-timer (run-with-idle-timer ttl-indent-idle-timer-period t 'ttl-idle-indent))
     (when ttl-indent-idle-timer
