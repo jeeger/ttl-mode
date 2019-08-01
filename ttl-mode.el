@@ -86,7 +86,7 @@
   ;; Comments syntax
   (set (make-local-variable 'comment-start) " # ")
   (modify-syntax-entry ?\n "> " ttl-mode-syntax-table)
-
+  (modify-syntax-entry ?\' "\"" ttl-mode-syntax-table)
   ;; fontification
   (setq font-lock-defaults
         `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "@forAll" "@forSome" "true" "false" "a") 'symbols)  ;keywords
