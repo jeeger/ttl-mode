@@ -138,7 +138,7 @@
   (interactive)
   (save-excursion
     (indent-line-to
-     (or (ignore-errors (ttl-calculate-indentation)) 0)))
+     (or (ttl-calculate-indentation) 0)))
   (move-to-column (max (current-indentation) (current-column))))
 
 (defun ttl-idle-indent ()
@@ -184,7 +184,7 @@
 (defun ttl-adjusted-paren-depth (parenpos)
   "Calculate parenthesis depth from PARENPOS, ignoring parentheses on the same line."
   ;; Just enough common lisp to be dangerous.
-  (length (delete-dups (loop for pos in parenpos collect (line-number-at-pos pos)))))
+  (length (delete-dups (cl-loop for pos in parenpos collect (line-number-at-pos pos)))))
 
 (defun ttl-skip-uninteresting-lines ()
   "Skip backwards to the first non-comment content."
