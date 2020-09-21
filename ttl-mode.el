@@ -151,8 +151,8 @@
   (save-excursion
     (backward-to-indentation 0)
     (cl-destructuring-bind
-	(last-indent last-character)
-	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-before)))
+	(last-indent last-character after-prefix)
+	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-before) (ttl-in-prefix-line)))
       (let* ((syntax-info (syntax-ppss))
 	     (base-indent (* ttl-indent-level (ttl-adjusted-paren-depth (nth 9 syntax-info)))))
 	(cond
@@ -162,8 +162,8 @@
 	 ((= (line-number-at-pos (point) t) 1) 0)
 	 ;; beginning of stanza
 	 ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
-		   (looking-at "PREFIX:")
-		   (looking-at "BASE:"))
+		   (looking-at "PREFIX")
+		   (looking-at "BASE"))
 	       (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
 	  0)
 	 ;; ((looking-at "#") base-indent)
@@ -171,30 +171,37 @@
 	  (save-excursion
 	    (goto-char (nth 1 syntax-info))
 	    (current-indentation)))
-	 ;; TODO: Merge these.
-	 ((ttl-first-line-of ?\[ last-character)
-	  (+ last-indent ttl-indent-level))
-	 ((ttl-first-line-of ?\( last-character)
-	  (+ last-indent ttl-indent-level))
-	 ((ttl-first-line-of ?\{ last-character)
+	 ((and (not (bobp))
+               (or (ttl-first-line-of ?\[ last-character)
+                   (ttl-first-line-of ?\( last-character)
+                   (ttl-first-line-of ?\{ last-character)))
 	  (+ last-indent ttl-indent-level))
 	 ((eq ?. last-character) base-indent)
-	 (t (+ base-indent ttl-indent-level)))))))
+         (after-prefix 0)
+         ((ttl-in-blank-node) base-indent)
+	 (last-character (+ base-indent ttl-indent-level)))))))
 
 (defun ttl-adjusted-paren-depth (parenpos)
   "Calculate parenthesis depth from PARENPOS, ignoring parentheses on the same line."
   ;; Just enough common lisp to be dangerous.
   (length (delete-dups (cl-loop for pos in parenpos collect (line-number-at-pos pos)))))
 
+(defun ttl-in-prefix-line ()
+  (save-excursion
+    (beginning-of-line)
+    (looking-at (rx (or "@" "PREFIX" "BASE")))))
+
 (defun ttl-skip-uninteresting-lines ()
   "Skip backwards to the first non-comment content."
   (forward-line -1)
   ;; First, skip lines that consist only of comments.
-  (while (or
-	  ;; Skip comment lines
-	  (string-match (rx (and string-start (* blank) ?# (*? not-newline) line-end)) (thing-at-point 'line))
-	  ;; Skip empty lines
-	  (string-match (rx (and string-start (* blank) line-end)) (thing-at-point 'line)))
+  (while (and
+          (not (bobp))
+          ;; Skip comment lines
+          (or
+           (string-match (rx (and string-start (* blank) ?# (*? not-newline) line-end)) (thing-at-point 'line))
+           ;; Skip empty lines
+           (string-match (rx (and string-start (* blank) line-end)) (thing-at-point 'line))))
     (forward-line -1))
   ;; Then, go to last non-comment-character
   (if (search-forward " #" (point-at-eol) t)
