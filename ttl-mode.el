@@ -129,7 +129,8 @@
 	(let ((char-before (buffer-substring-no-properties
 			    (max (point-min) (- (point) 2))
 			    (min (point-max) (- (point) 1)))))
-	  (when (or (equal char-before " ")
+	  (when (or (equal char-before "") ; Beginning of buffer
+                    (equal char-before " ")
 		    (equal char-before "\n"))
 	    (put-text-property (match-beginning 0) (match-end 0) 'syntax-table '(11))))))))
 
