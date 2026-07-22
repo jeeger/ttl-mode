@@ -68,17 +68,6 @@
   "If non-nil, `\;' or `\.' will self insert, reindent the line, and do a newline. (To insert while t, do: \\[quoted-insert] \;)."
   :type 'boolean)
 
-(defcustom ttl-indent-on-idle-timer t
-  "If non-nil, will automatically indent a line after `ttl-idle-timer-timeout'."
-  :type 'boolean)
-
-(defcustom ttl-indent-idle-timer-period 2
-  "If `ttl-indent-on-idle-timer' is non-nil, indent after EMACS has been idle for this many seconds."
-  :type 'integer)
-
-
-(defvar ttl-indent-idle-timer nil "TTL-mode autoindent idle timer if idle auto indentation is used (`ttl-indent-on-idle-timer' is non-nil).")
-
 ;;;###autoload
 (define-derived-mode ttl-mode prog-mode "N3/Turtle mode"
   "Major mode for Turtle RDF documents."
@@ -104,11 +93,7 @@
   (set (make-local-variable 'indent-line-function) 'ttl-indent-line)
   (set (make-local-variable 'indent-tabs-mode) nil)
   (set (make-local-variable 'syntax-propertize-function) 'ttl-propertize-comments)
-  (setq show-trailing-whitespace t)
-  (if (and ttl-indent-on-idle-timer (not ttl-indent-idle-timer))
-      (setq ttl-indent-idle-timer (run-with-idle-timer ttl-indent-idle-timer-period t 'ttl-idle-indent))
-    (when ttl-indent-idle-timer
-      (setq ttl-indent-idle-timer (cancel-timer ttl-indent-idle-timer)))))
+  (setq show-trailing-whitespace t))
 
 ;; electric punctuation
 (define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
@@ -140,11 +125,6 @@
     (indent-line-to
      (or (ttl-calculate-indentation) 0)))
   (move-to-column (max (current-indentation) (current-column))))
-
-(defun ttl-idle-indent ()
-  "Indent the current line, and check you're in an ttl-mode buffer."
-  (when (eq major-mode 'ttl-mode)
-      (ttl-indent-line)))
 
 (defun ttl-calculate-indentation ()
   "Calculate the indentation for the current line."
