@@ -192,7 +192,7 @@
 (defun ttl-insulate ()
   "Return non-nil if this location should not be electrified."
   (or (not ttl-electric-punctuation)
-      (let '(s (syntax-ppss))
+      (let ((s (syntax-ppss)))
         (or (nth 3 s)
             (nth 4 s)
             (ttl-in-resource)))))
