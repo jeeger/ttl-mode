@@ -17,6 +17,16 @@
     (indent-region (point-min) (point-max))
     (buffer-string)))
 
+(defun ttl-test-face-at (text search)
+  "Fontify TEXT in `ttl-mode' and return the face where SEARCH begins."
+  (with-temp-buffer
+    (insert text)
+    (ttl-mode)
+    (font-lock-ensure)
+    (goto-char (point-min))
+    (search-forward search)
+    (get-text-property (match-beginning 0) 'face)))
+
 (describe "ttl-mode indentation is idempotent"
   (dolist (case '((:desc "prefixes and a simple statement"
                    :text "@prefix ex: <http://example.org/> .
@@ -45,6 +55,25 @@ ex:s a ex:Thing ;
     ex:s ex:p ex:o ;
         ex:q ex:r .
 }
+")
+                  (:desc "a comment line between statements"
+                   :text "ex:s ex:p ex:o ;
+    # a comment
+    ex:q 1 .
+")
+                  (:desc "a hash inside a resource is not a comment"
+                   :text "ex:s ex:p <http://example.org/thing#frag> ;
+    ex:q 1 .
+")
+                  (:desc "a closing bracket on its own line aligns under its opener"
+                   :text "ex:s ex:p [
+            ex:a 1 ;
+            ex:b 2
+] .
+")
+                  (:desc "several brackets opened on one line count as one step"
+                   :text "ex:s ex:p [ ex:q [ ex:a 1 ;
+            ex:b 2 ] ] .
 ")))
     (it (plist-get case :desc)
       (let ((text (plist-get case :text)))
@@ -68,7 +97,15 @@ ex:s a ex:Thing ;
         [ sh:datatype xsd:double ;
             sh:path :rate ] ;
     sh:targetClass :X .
-")))
+"))
+
+  (it "moves a mis-indented first line to column 0"
+    (expect (ttl-test-reindent "        ex:s ex:p ex:o .\n")
+            :to-equal "ex:s ex:p ex:o .\n"))
+
+  (it "snaps a mis-indented @prefix to column 0"
+    (expect (ttl-test-reindent "        @prefix ex: <http://example.org/> .\n")
+            :to-equal "@prefix ex: <http://example.org/> .\n")))
 
 (describe "ttl-mode comment syntax"
   (it "treats a hash after whitespace as a comment"
@@ -103,5 +140,53 @@ ex:s a ex:Thing ;
       (goto-char (point-min))
       (search-forward "ex:o")
       (expect (ttl-in-blank-node) :to-be nil))))
+
+(describe "ttl-in-string"
+  (it "treats single-quoted text as a string"
+    (with-temp-buffer
+      (insert "ex:s ex:p 'hello world' .\n")
+      (ttl-mode)
+      (goto-char (point-min))
+      (search-forward "hello")
+      (expect (ttl-in-string) :to-be-truthy)))
+
+  (it "is nil outside strings"
+    (with-temp-buffer
+      (insert "ex:s ex:p ex:o .\n")
+      (ttl-mode)
+      (goto-char (point-min))
+      (search-forward "ex:o")
+      (expect (ttl-in-string) :to-be nil))))
+
+(describe "ttl-electric-dot"
+  (it "refuses to insert a period inside a blank node"
+    (with-temp-buffer
+      (insert "ex:s ex:p [ ex:a 1 ")
+      (ttl-mode)
+      (goto-char (point-max))
+      (let ((before (buffer-string)))
+        (ttl-electric-dot)
+        (expect (buffer-string) :to-equal before))))
+
+  ;; jeeger/ttl-mode issue #3: a dot belongs in a string even in a blank node.
+  (it "allows a period inside a string within a blank node"
+    (with-temp-buffer
+      (insert "ex:s ex:p [ ex:a 'text")
+      (ttl-mode)
+      (goto-char (point-max))
+      (let ((before (buffer-string)))
+        (ttl-electric-dot)
+        (expect (buffer-string) :to-equal (concat before "."))))))
+
+(describe "ttl-mode highlighting"
+  ;; jeeger/ttl-mode issue #5: a dash is a valid prefix character.
+  (it "highlights a prefix containing a dash"
+    (expect (ttl-test-face-at "my-prefix:thing a ex:Y ." "my-prefix")
+            :to-be 'font-lock-type-face))
+
+  ;; jeeger/ttl-mode issue #4: quoted literals are strings.
+  (it "highlights a single-quoted literal as a string"
+    (expect (ttl-test-face-at "ex:s ex:p 'a literal' ." "literal")
+            :to-be 'font-lock-string-face)))
 
 ;;; ttl-mode-test.el ends here
