@@ -1,4 +1,4 @@
-;;; ttl-mode.el --- mode for Turtle (and Notation 3)
+;;; ttl-mode.el --- mode for Turtle (and Notation 3)  -*- lexical-binding: t; -*-
 ;; ttl-mode.el is released under the terms of the two-clause BSD licence:
 ;;
 ;; Copyright 2003-2007, Hugo Haas <http://www.hugoh.net>
@@ -65,7 +65,8 @@
   :type 'integer)
 
 (defcustom ttl-electric-punctuation t
-  "If non-nil, `\;' or `\.' will self insert, reindent the line, and do a newline. (To insert while t, do: \\[quoted-insert] \;)."
+  "If non-nil, `\;' or `\.' self-insert, reindent, and open a new line.
+To insert one literally while enabled, use \\[quoted-insert]."
   :type 'boolean)
 
 ;;;###autoload
@@ -106,7 +107,8 @@
 ;; Could be replaced with a call to syntax-propertize-rules. See
 ;; https://emacs.stackexchange.com/questions/36909/how-can-i-make-syntax-propertize-skip-part-of-the-buffer
 (defun ttl-propertize-comments (start end)
-  "Set the syntax class to `comment-start` for all hashes that are prepended by a space between START and END."
+  "Give comment syntax to each `#' preceded by a space or newline.
+Operates on the region between START and END."
   (save-excursion
     (goto-char start)
     (save-match-data
@@ -162,7 +164,7 @@
 	 (last-character (+ base-indent ttl-indent-level)))))))
 
 (defun ttl-adjusted-paren-depth (parenpos)
-  "Calculate parenthesis depth from PARENPOS, ignoring parentheses on the same line."
+  "Count parenthesis depth from PARENPOS, ignoring parens on the same line."
   ;; Just enough common lisp to be dangerous.
   (length (delete-dups (cl-loop for pos in parenpos collect (line-number-at-pos pos)))))
 
@@ -184,7 +186,7 @@
            (string-match (rx (and string-start (* blank) line-end)) (thing-at-point 'line))))
     (forward-line -1))
   ;; Then, go to last non-comment-character
-  (if (search-forward " #" (point-at-eol) t)
+  (if (search-forward " #" (line-end-position) t)
       (backward-char 2)
     (end-of-line)))
   
