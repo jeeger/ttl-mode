@@ -1,4 +1,12 @@
-;;; ttl-mode.el --- mode for Turtle (and Notation 3)  -*- lexical-binding: t; -*-
+;;; ttl-mode.el --- Major mode for Turtle (and Notation 3)  -*- lexical-binding: t; -*-
+
+;; Author: Hugo Haas, Norman Gray, Daniel Gerber, Peter Vasil
+;; Maintainer: Jan Seeger
+;; URL: https://github.com/jeeger/ttl-mode
+;; Version: 0.2.0
+;; Package-Requires: ((emacs "26.1"))
+;; Keywords: languages, data
+
 ;; ttl-mode.el is released under the terms of the two-clause BSD licence:
 ;;
 ;; Copyright 2003-2007, Hugo Haas <http://www.hugoh.net>
