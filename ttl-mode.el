@@ -154,13 +154,15 @@ Operates on the region between START and END."
 	    (goto-char (nth 1 syntax-info))
 	    (current-indentation)))
 	 ((and (not (bobp))
-               (or (ttl-first-line-of ?\[ last-character)
-                   (ttl-first-line-of ?\( last-character)
+               (or (ttl-first-line-of ?\( last-character)
                    (ttl-first-line-of ?\{ last-character)))
 	  (+ last-indent ttl-indent-level))
 	 ((eq ?. last-character) base-indent)
          (after-prefix 0)
-         ((ttl-in-blank-node) base-indent)
+         ;; A blank node's predicates and every object after the first in a
+         ;; comma list sit two levels in, so they clear the predicate column.
+         ((or (eq ?\, last-character) (ttl-in-blank-node))
+          (+ base-indent (* 2 ttl-indent-level)))
 	 (last-character (+ base-indent ttl-indent-level)))))))
 
 (defun ttl-adjusted-paren-depth (parenpos)
