@@ -107,7 +107,6 @@ To insert one literally while enabled, use \\[quoted-insert]."
 ;; electric punctuation
 (define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
 (define-key ttl-mode-map (kbd "\;") 'ttl-electric-semicolon)
-(define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
 (define-key ttl-mode-map (kbd "\.") 'ttl-electric-dot)
 (define-key ttl-mode-map [backspace] 'ttl-hungry-delete-backwards)
 
