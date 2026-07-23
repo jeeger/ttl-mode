@@ -9,6 +9,12 @@
 (require 'buttercup)
 (require 'ttl-mode)
 
+(defun ttl-lines (&rest lines)
+  "Join LINES with newlines into one buffer-ready string.
+The result ends with a newline, like a text file, so fixtures can be
+written one line per string instead of as a flush-left literal."
+  (concat (mapconcat #'identity lines "\n") "\n"))
+
 (defun ttl-test-reindent (text)
   "Return TEXT after re-indenting every line in `ttl-mode'."
   (with-temp-buffer
@@ -28,76 +34,79 @@
     (get-text-property (match-beginning 0) 'face)))
 
 (describe "ttl-mode indentation is idempotent"
-  (dolist (case '((:desc "prefixes and a simple statement"
-                   :text "@prefix ex: <http://example.org/> .
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-
-ex:s a ex:Thing ;
-    ex:p ex:o ;
-    ex:q 1 .
-")
+  (dolist (case `((:desc "prefixes and a simple statement"
+                   :text ,(ttl-lines
+                           "@prefix ex: <http://example.org/> ."
+                           "@prefix sh: <http://www.w3.org/ns/shacl#> ."
+                           ""
+                           "ex:s a ex:Thing ;"
+                           "    ex:p ex:o ;"
+                           "    ex:q 1 ."))
                   (:desc "blank nodes written inline with the predicate"
-                   :text ":Shape a sh:NodeShape ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:path rdfs:label ],
-        [ sh:datatype xsd:double ;
-            sh:path :rate ] ;
-    sh:targetClass :X .
-")
+                   :text ,(ttl-lines
+                           ":Shape a sh:NodeShape ;"
+                           "    sh:property [ sh:datatype xsd:string ;"
+                           "            sh:maxCount 1 ;"
+                           "            sh:path rdfs:label ],"
+                           "        [ sh:datatype xsd:double ;"
+                           "            sh:path :rate ] ;"
+                           "    sh:targetClass :X ."))
                   (:desc "a blank node opened at end of line"
-                   :text "ex:s ex:p [
-            ex:a 1 ;
-            ex:b 2 ] .
-")
+                   :text ,(ttl-lines
+                           "ex:s ex:p ["
+                           "            ex:a 1 ;"
+                           "            ex:b 2 ] ."))
                   (:desc "a TriG named graph"
-                   :text "ex:g {
-    ex:s ex:p ex:o ;
-        ex:q ex:r .
-}
-")
+                   :text ,(ttl-lines
+                           "ex:g {"
+                           "    ex:s ex:p ex:o ;"
+                           "        ex:q ex:r ."
+                           "}"))
                   (:desc "a comment line between statements"
-                   :text "ex:s ex:p ex:o ;
-    # a comment
-    ex:q 1 .
-")
+                   :text ,(ttl-lines
+                           "ex:s ex:p ex:o ;"
+                           "    # a comment"
+                           "    ex:q 1 ."))
                   (:desc "a hash inside a resource is not a comment"
-                   :text "ex:s ex:p <http://example.org/thing#frag> ;
-    ex:q 1 .
-")
+                   :text ,(ttl-lines
+                           "ex:s ex:p <http://example.org/thing#frag> ;"
+                           "    ex:q 1 ."))
                   (:desc "a closing bracket on its own line aligns under its opener"
-                   :text "ex:s ex:p [
-            ex:a 1 ;
-            ex:b 2
-] .
-")
+                   :text ,(ttl-lines
+                           "ex:s ex:p ["
+                           "            ex:a 1 ;"
+                           "            ex:b 2"
+                           "] ."))
                   (:desc "several brackets opened on one line count as one step"
-                   :text "ex:s ex:p [ ex:q [ ex:a 1 ;
-            ex:b 2 ] ] .
-")))
-    (it (plist-get case :desc)
-      (let ((text (plist-get case :text)))
+                   :text ,(ttl-lines
+                           "ex:s ex:p [ ex:q [ ex:a 1 ;"
+                           "            ex:b 2 ] ] ."))))
+    (let ((desc (plist-get case :desc))
+          (text (plist-get case :text)))
+      (it desc
         (expect (ttl-test-reindent text) :to-equal text)))))
 
 (describe "ttl-mode indentation converges"
   (it "restores nesting a flattened blank-node list lost"
     (expect
-     (ttl-test-reindent ":Shape a sh:NodeShape ;
-    sh:property [ sh:datatype xsd:string ;
-    sh:maxCount 1 ;
-    sh:path rdfs:label ],
-    [ sh:datatype xsd:double ;
-    sh:path :rate ] ;
-    sh:targetClass :X .
-")
-     :to-equal ":Shape a sh:NodeShape ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:path rdfs:label ],
-        [ sh:datatype xsd:double ;
-            sh:path :rate ] ;
-    sh:targetClass :X .
-"))
+     (ttl-test-reindent
+      (ttl-lines
+       ":Shape a sh:NodeShape ;"
+       "    sh:property [ sh:datatype xsd:string ;"
+       "    sh:maxCount 1 ;"
+       "    sh:path rdfs:label ],"
+       "    [ sh:datatype xsd:double ;"
+       "    sh:path :rate ] ;"
+       "    sh:targetClass :X ."))
+     :to-equal
+     (ttl-lines
+      ":Shape a sh:NodeShape ;"
+      "    sh:property [ sh:datatype xsd:string ;"
+      "            sh:maxCount 1 ;"
+      "            sh:path rdfs:label ],"
+      "        [ sh:datatype xsd:double ;"
+      "            sh:path :rate ] ;"
+      "    sh:targetClass :X .")))
 
   (it "moves a mis-indented first line to column 0"
     (expect (ttl-test-reindent "        ex:s ex:p ex:o .\n")
