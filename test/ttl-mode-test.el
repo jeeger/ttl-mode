@@ -122,7 +122,15 @@ ex:s a ex:Thing ;
       (ttl-mode)
       (goto-char (point-min))
       (search-forward "#frag")
-      (expect (ttl-in-comment) :to-be nil))))
+      (expect (ttl-in-comment) :to-be nil)))
+
+  (it "treats a hash at the very start of the buffer as a comment"
+    (with-temp-buffer
+      (insert "# leading comment\nex:s ex:p ex:o .\n")
+      (ttl-mode)
+      (goto-char (point-min))
+      (search-forward "leading")
+      (expect (ttl-in-comment) :to-be-truthy))))
 
 (describe "ttl-in-blank-node"
   (it "is truthy inside square brackets"

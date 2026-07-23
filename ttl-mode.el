@@ -115,18 +115,16 @@ To insert one literally while enabled, use \\[quoted-insert]."
 ;; Could be replaced with a call to syntax-propertize-rules. See
 ;; https://emacs.stackexchange.com/questions/36909/how-can-i-make-syntax-propertize-skip-part-of-the-buffer
 (defun ttl-propertize-comments (start end)
-  "Give comment syntax to each `#' preceded by a space or newline.
-Operates on the region between START and END."
+  "Give comment syntax to each `#' that begins a comment.
+A `#' begins a comment when preceded by a space, a newline, or the
+buffer start.  Operates on the region between START and END."
   (save-excursion
     (goto-char start)
     (save-match-data
       (while (search-forward "#" end t)
-        (let ((char-before (buffer-substring-no-properties
-                            (max (point-min) (- (point) 2))
-                            (min (point-max) (- (point) 1)))))
-          (when (or (equal char-before " ")
-                    (equal char-before "\n"))
-            (put-text-property (match-beginning 0) (match-end 0) 'syntax-table '(11))))))))
+        (when (memq (char-before (match-beginning 0)) '(?\s ?\n nil))
+          (put-text-property (match-beginning 0) (match-end 0)
+                             'syntax-table '(11)))))))
 
 (defun ttl-indent-line ()
   "Indent current line."
