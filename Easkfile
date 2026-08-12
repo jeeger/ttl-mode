@@ -1,0 +1,17 @@
+(package "ttl-mode"
+         "0.2.0"
+         "Major mode for Turtle (and Notation 3)")
+
+(website-url "https://github.com/raszi/ttl-mode")
+(keywords "languages" "data")
+
+(package-file "ttl-mode.el")
+
+(source "gnu")
+(source "melpa")
+
+(depends-on "emacs" "26.1")
+
+(development
+ (depends-on "package-lint")
+ (depends-on "buttercup"))

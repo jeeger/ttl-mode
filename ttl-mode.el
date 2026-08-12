@@ -1,4 +1,12 @@
-;;; ttl-mode.el --- mode for Turtle (and Notation 3)
+;;; ttl-mode.el --- Major mode for Turtle (and Notation 3)  -*- lexical-binding: t; -*-
+
+;; Author: Hugo Haas, Norman Gray, Daniel Gerber, Peter Vasil
+;; Maintainer: Jan Seeger
+;; URL: https://github.com/jeeger/ttl-mode
+;; Version: 0.2.0
+;; Package-Requires: ((emacs "26.1"))
+;; Keywords: languages, data
+
 ;; ttl-mode.el is released under the terms of the two-clause BSD licence:
 ;;
 ;; Copyright 2003-2007, Hugo Haas <http://www.hugoh.net>
@@ -58,26 +66,16 @@
 
 (require 'cl-lib)
 
-(defgroup ttl nil "Customization for ttl-mode" :group 'text)
+(defgroup ttl nil "Customization for ttl-mode." :group 'text)
 
 (defcustom ttl-indent-level 4
   "Number of spaces for each indentation step in `ttl-mode'."
   :type 'integer)
 
 (defcustom ttl-electric-punctuation t
-  "If non-nil, `\;' or `\.' will self insert, reindent the line, and do a newline. (To insert while t, do: \\[quoted-insert] \;)."
+  "If non-nil, `\;' or `\.' self-insert, reindent, and open a new line.
+To insert one literally while enabled, use \\[quoted-insert]."
   :type 'boolean)
-
-(defcustom ttl-indent-on-idle-timer t
-  "If non-nil, will automatically indent a line after `ttl-idle-timer-timeout'."
-  :type 'boolean)
-
-(defcustom ttl-indent-idle-timer-period 2
-  "If `ttl-indent-on-idle-timer' is non-nil, indent after EMACS has been idle for this many seconds."
-  :type 'integer)
-
-
-(defvar ttl-indent-idle-timer nil "TTL-mode autoindent idle timer if idle auto indentation is used (`ttl-indent-on-idle-timer' is non-nil).")
 
 ;;;###autoload
 (define-derived-mode ttl-mode prog-mode "N3/Turtle mode"
@@ -91,12 +89,12 @@
   (setq font-lock-defaults
         `((,(regexp-opt '("@prefix" "@base" "@keywords" "PREFIX" "BASE" "@forAll" "@forSome" "true" "false" "a") 'symbols)  ;keywords
            ("\\^\\^[^,;.]+" 0 font-lock-preprocessor-face t) ;literal types
-	   ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
+           ("\\?[[:word:]_]+" 0 font-lock-variable-name-face) ;Existentially quantified variables
            ("@[[:word:]_]+" . font-lock-preprocessor-face) ;languages
-	   ; Does not work with iris containing multiple colons (one:two:three is apparently allowed.)
+           ;; Does not work with iris containing multiple colons (one:two:three is apparently allowed.)
            ("\\(:?[-[:alnum:]]+\\|_\\)?:" . font-lock-type-face)       ;prefix
            (":\\([[:word:]_-]+\\)\\>" 1 font-lock-constant-face nil) ;suffix
-	   ;; TODO: This incorrectly highlights resources in strings.
+           ;; TODO: This incorrectly highlights resources in strings.
            ("<.*?>" 0 font-lock-function-name-face t) ;resources
            ("[,;.]" 0 font-lock-keyword-face))))
   
@@ -104,16 +102,11 @@
   (set (make-local-variable 'indent-line-function) 'ttl-indent-line)
   (set (make-local-variable 'indent-tabs-mode) nil)
   (set (make-local-variable 'syntax-propertize-function) 'ttl-propertize-comments)
-  (setq show-trailing-whitespace t)
-  (if (and ttl-indent-on-idle-timer (not ttl-indent-idle-timer))
-      (setq ttl-indent-idle-timer (run-with-idle-timer ttl-indent-idle-timer-period t 'ttl-idle-indent))
-    (when ttl-indent-idle-timer
-      (setq ttl-indent-idle-timer (cancel-timer ttl-indent-idle-timer)))))
+  (setq show-trailing-whitespace t))
 
 ;; electric punctuation
 (define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
 (define-key ttl-mode-map (kbd "\;") 'ttl-electric-semicolon)
-(define-key ttl-mode-map (kbd "\,") 'ttl-electric-comma)
 (define-key ttl-mode-map (kbd "\.") 'ttl-electric-dot)
 (define-key ttl-mode-map [backspace] 'ttl-hungry-delete-backwards)
 
@@ -121,17 +114,16 @@
 ;; Could be replaced with a call to syntax-propertize-rules. See
 ;; https://emacs.stackexchange.com/questions/36909/how-can-i-make-syntax-propertize-skip-part-of-the-buffer
 (defun ttl-propertize-comments (start end)
-  "Set the syntax class to `comment-start` for all hashes that are prepended by a space between START and END."
+  "Give comment syntax to each `#' that begins a comment.
+A `#' begins a comment when preceded by a space, a newline, or the
+buffer start.  Operates on the region between START and END."
   (save-excursion
     (goto-char start)
     (save-match-data
       (while (search-forward "#" end t)
-	(let ((char-before (buffer-substring-no-properties
-			    (max (point-min) (- (point) 2))
-			    (min (point-max) (- (point) 1)))))
-	  (when (or (equal char-before " ")
-		    (equal char-before "\n"))
-	    (put-text-property (match-beginning 0) (match-end 0) 'syntax-table '(11))))))))
+        (when (memq (char-before (match-beginning 0)) '(?\s ?\n nil))
+          (put-text-property (match-beginning 0) (match-end 0)
+                             'syntax-table '(11)))))))
 
 (defun ttl-indent-line ()
   "Indent current line."
@@ -141,48 +133,45 @@
      (or (ttl-calculate-indentation) 0)))
   (move-to-column (max (current-indentation) (current-column))))
 
-(defun ttl-idle-indent ()
-  "Indent the current line, and check you're in an ttl-mode buffer."
-  (when (eq major-mode 'ttl-mode)
-      (ttl-indent-line)))
-
 (defun ttl-calculate-indentation ()
   "Calculate the indentation for the current line."
   (save-excursion
     (backward-to-indentation 0)
     (cl-destructuring-bind
-	(last-indent last-character after-prefix)
-	(save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-before) (ttl-in-prefix-line)))
+        (last-indent last-character after-prefix)
+        (save-excursion (ttl-skip-uninteresting-lines) (list (current-indentation) (char-before) (ttl-in-prefix-line)))
       (let* ((syntax-info (syntax-ppss))
-	     (base-indent (* ttl-indent-level (ttl-adjusted-paren-depth (nth 9 syntax-info)))))
-	(cond
-	 ;; in multiline string
-	 ((nth 3 syntax-info) (current-indentation))
-	 ;; First line in buffer.
-	 ((= (line-number-at-pos (point) t) 1) 0)
-	 ;; beginning of stanza
-	 ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
-		   (looking-at "PREFIX")
-		   (looking-at "BASE"))
-	       (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
-	  0)
-	 ;; ((looking-at "#") base-indent)
-	 ((looking-at "[])}]")		; Indent to level of matching parenthesis.
-	  (save-excursion
-	    (goto-char (nth 1 syntax-info))
-	    (current-indentation)))
-	 ((and (not (bobp))
-               (or (ttl-first-line-of ?\[ last-character)
-                   (ttl-first-line-of ?\( last-character)
+             (base-indent (* ttl-indent-level (ttl-adjusted-paren-depth (nth 9 syntax-info)))))
+        (cond
+         ;; in multiline string
+         ((nth 3 syntax-info) (current-indentation))
+         ;; First line in buffer.
+         ((= (line-number-at-pos (point) t) 1) 0)
+         ;; beginning of stanza
+         ((and (or (looking-at "@")         ; @prefix, @base, @keywords.
+                   (looking-at "PREFIX")
+                   (looking-at "BASE"))
+               (not (looking-at "\\(@forSome\\)\\|\\(@forAll\\)"))) ; @forAll and @forSome should be indented normally.
+          0)
+         ;; ((looking-at "#") base-indent)
+         ((looking-at "[])}]")        ; Indent to level of matching parenthesis.
+          (save-excursion
+            (goto-char (nth 1 syntax-info))
+            (current-indentation)))
+         ((and (not (bobp))
+               (or (ttl-first-line-of ?\( last-character)
                    (ttl-first-line-of ?\{ last-character)))
-	  (+ last-indent ttl-indent-level))
-	 ((eq ?. last-character) base-indent)
+          (+ last-indent ttl-indent-level))
+         ((eq ?. last-character) base-indent)
          (after-prefix 0)
-         ((ttl-in-blank-node) base-indent)
-	 (last-character (+ base-indent ttl-indent-level)))))))
+         ;; A blank node's predicates and every object after the first in a
+         ;; comma list sit two levels in, so they clear the predicate column.
+         ((or (eq ?\, last-character) (ttl-in-blank-node))
+          (+ base-indent (* 2 ttl-indent-level)))
+         (last-character (+ base-indent ttl-indent-level)))))))
 
 (defun ttl-adjusted-paren-depth (parenpos)
-  "Calculate parenthesis depth from PARENPOS, ignoring parentheses on the same line."
+  "Count parenthesis depth from PARENPOS, ignoring parens on the same line."
   ;; Just enough common lisp to be dangerous.
   (length (delete-dups (cl-loop for pos in parenpos collect (line-number-at-pos pos)))))
 
@@ -204,15 +193,14 @@
            (string-match (rx (and string-start (* blank) line-end)) (thing-at-point 'line))))
     (forward-line -1))
   ;; Then, go to last non-comment-character
-  (if (search-forward " #" (point-at-eol) t)
+  (if (search-forward " #" (line-end-position) t)
       (backward-char 2)
     (end-of-line)))
-  
 
 (defun ttl-insulate ()
   "Return non-nil if this location should not be electrified."
   (or (not ttl-electric-punctuation)
-      (let '(s (syntax-ppss))
+      (let ((s (syntax-ppss)))
         (or (nth 3 s)
             (nth 4 s)
             (ttl-in-resource)))))
@@ -220,8 +208,8 @@
 (defun ttl-last-bracket-is (brack)
   "Is the last bracket equal to BRACK?"
   (let ((list-start (nth 1 (syntax-ppss))))
-       (and list-start
-	    (equal (char-after list-start) brack))))
+    (and list-start
+         (equal (char-after list-start) brack))))
 
 (defun ttl-first-line-of (brack lastchar)
   "Whether we are in the first line of a node introduced by BRACK.
@@ -233,7 +221,7 @@ LASTCHAR is the last character of the preceding line."
 (defun ttl-in-blank-node ()
   "Is point within a blank node, marked by [...]?"
   (ttl-last-bracket-is ?\[))
-  
+
 (defun ttl-in-graph ()
   "Is point within a graph?"
   (ttl-last-bracket-is ?\{))
@@ -277,8 +265,8 @@ LASTCHAR is the last character of the preceding line."
   "Insert spaced dot, insert newline, indent."
   (interactive)
   (if (and (ttl-in-blank-node)
-	   (not (ttl-in-comment))
-	   (not (ttl-in-string)))
+           (not (ttl-in-comment))
+           (not (ttl-in-string)))
       (message "No period in blank nodes.")
     (if (ttl-insulate) (insert ".")
       (if (not (looking-back " " 1)) (insert " "))
