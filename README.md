@@ -3,6 +3,9 @@ This is an Emacs mode for editing Turtle (RDF) files.
 I've changed the indenting for ttl-mode somewhat to support graphs
 (`{}`) better.
 
+This library is not available via MELPA, the ttl-mode available on MELPA can be found
+[here](https://github.com/emacsattic/ttl-mode).
+
 Original readme:
 
 It is based on an excellent start made by Hugo Haas.
