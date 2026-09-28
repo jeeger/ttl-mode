@@ -1,3 +1,5 @@
+;; -*- mode: eask; lexical-binding: t -*-
+
 (package "ttl-mode"
          "0.2.0"
          "Major mode for Turtle (and Notation 3)")

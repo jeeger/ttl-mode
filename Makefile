@@ -1,7 +1,7 @@
 .PHONY: lint test clean
 
 .deps: Easkfile
-	eask install-deps
+	eask install-deps --dev
 	@touch .deps
 
 .compile: .deps ttl-mode.el
